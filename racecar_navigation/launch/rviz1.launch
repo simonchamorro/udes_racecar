@@ -1,0 +1,6 @@
+<!-- -->
+<launch>
+
+  <node name="rviz1" pkg="rviz" type="rviz" args="-d $(find racecar_navigation)/config/rviz_navigation1.rviz"/>
+
+</launch>

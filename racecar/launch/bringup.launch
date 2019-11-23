@@ -1,0 +1,102 @@
+<?xml version="1.0"?>
+<launch>
+
+    <arg name="prefix"       default="racecar"/>
+    <arg name="slash_controller" default="true"/> <!-- True: Use Firmware APP4+teleop. False: Use Firmware APP1 (use 115200 version). -->
+    <arg name="web_server"   default="false"/> <!-- APP1: launch web server -->
+    <arg name="arduino_port" default="ACM0"/>  <!-- for /dev/ttyACM0 -->
+    <arg name="arduino_baud" default="115200"/>
+    <arg name="lidar_port"   default="USB0"/>  <!-- for /dev/ttyUSB0 -->
+    <arg name="joy_port"     default="js0"/>   <!-- for /dev/input/js0 -->
+    <arg name="odom_fusion"   default="false"/> <!-- APP5: Use robot_localization for odometry -->
+    
+    <group ns="$(arg prefix)">
+          
+      <!-- urdf xml robot description loaded on the Parameter Server, converting the xacro into a proper urdf file-->
+      <param name="robot_description" command="$(find xacro)/xacro '$(find racecar_description)/urdf/racecar.xacro'" />
+
+      <!-- convert robot_description to TF transforms for rviz, etc -->
+      <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen">
+	    <remap from="/joint_states" to="joint_states" />
+      </node>
+   
+      <!-- Arbitration node -->
+      <node pkg="racecar" type="cmd_vel_arbitration.py" name="cmd_vel_arbitration">     
+         <remap from="cmd_vel_output" to="cmd_vel"/>
+      </node>
+      
+      <!-- Joystick and low level controller -->
+      <node pkg="joy" type="joy_node" name="joy">
+        <param name="dev" value="/dev/input/$(arg joy_port)"/>
+        <param name="deadzone" value="0.0"/>
+        <param name="autorepeat_rate" value="5"/>
+        <param name="coalesce_interval" value="0.01"/>
+      </node>
+      <node if="$(arg slash_controller)" pkg="slash_controller" type="slash_teleop.py" name="teleop">
+        <remap from="ctl_ref" to="cmd_vel_teleop"/>
+        <param name="max_vel" value="2"/>
+        <param name="max_angle" value="21"/>
+      </node>
+      <node if="$(arg slash_controller)" pkg="slash_controller" type="slash_controller.py" name="controller" output="screen">
+        <remap from="ctl_ref" to="cmd_vel_abtr_0"/> <!-- Highest priority -->
+      </node>
+      <node unless="$(arg slash_controller)" pkg="racecar" type="gamepad.py" name="gamepad">
+        <remap from="cmd_vel" to="cmd_vel_abtr_0"/> <!-- Highest priority -->
+        <param name="max_vel" value="2"/>
+        <param name="max_angle" value="21"/>
+      </node>
+      
+      <!-- Arduino bridge -->
+      <node pkg="rosserial_python" type="serial_node.py" name="rosserial" >
+          <param name="port" value="/dev/tty$(arg arduino_port)"/>
+          <param name="baud" value="$(arg arduino_baud)"/>
+      </node>
+      <node pkg="racecar" type="arduino_bridge.py" name="arduino_bridge" output="screen">
+        <param if="$(arg odom_fusion)" name="publish_tf" value="false"/>
+        <remap if="$(arg slash_controller)" from="raw_odom" to="prop_sensors"/>
+        <remap unless="$(arg odom_fusion)" from="odom" to="odometry/filtered"/>
+      </node>
+      <include if="$(arg odom_fusion)" file="$(find racecar)/launch/includes/robot_localization.launch.xml">
+        <arg name="prefix" value="$(arg prefix)"/>
+      </include>
+
+      <!-- Lidar-->
+      <node pkg="rplidar_ros"  type="rplidarNode" name="rplidar">
+          <param name="serial_port" type="string" value="/dev/tty$(arg lidar_port)"/>
+          <param name="serial_baudrate" type="int" value="115200"/>
+          <param name="frame_id" type="string" value="$(arg prefix)/base_laser"/>
+          <param name="inverted" type="bool" value="false"/>
+          <param name="angle_compensate" type="bool" value="true"/>
+      </node>
+
+      <!-- Camera-->
+      <node type="raspicam_node" pkg="raspicam_node" name="raspicam_node" output="screen">
+          <param name="private_topics" value="true"/>
+
+          <param name="camera_info_url" value="package://racecar/camera_info/front_camera.yaml"/>
+          <param name="camera_frame_id" value="$(arg prefix)/camera_optical_link"/>
+          <param name="enable_raw" value="false"/>
+          <param name="enable_imv" value="false"/>
+          <param name="camera_id" value="0"/>
+          <param name="camera_name" value="front_camera"/>
+
+          <param name="staturation" value="100"/>
+          <param name="brightness" value="50"/>
+          
+          <param name="width" value="160"/>
+          <param name="height" value="120"/>
+          <param name="framerate" value="10"/>
+      </node>
+      
+      <!-- APP1: web stuff, interface will be available at: http://localhost:8085/racecar_web_interface -->
+      <include if="$(arg web_server)" file="$(find roswww)/launch/roswww.launch">
+        <arg name="name" value="roswww"/>
+        <arg name="port" value="8085"/> <!-- avoid to use apache default port -->
+        <arg name="webpath" value="www"/> <!-- relative path to the webroot. E.g. place this folder in the ROS package root dir -->
+      </include>
+      <node if="$(arg web_server)" name="web_video_server" type="web_video_server" pkg="web_video_server"/>
+      <include if="$(arg web_server)" file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
+         
+    </group>
+
+</launch>
