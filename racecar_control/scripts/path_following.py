@@ -32,21 +32,30 @@ class PathFollowing:
         # if we want the middle value of the ranges to be forward:
         l2 = len(msg.ranges)/2;
         ranges = msg.ranges[l2:len(msg.ranges)] + msg.ranges[0:l2]
+        nb_fliter_pass = 1
 
-        # #  Normalize ranges
+        #  Normalize ranges
         # max_val = max(ranges)
         # ranges = [r/max_val for r in ranges]
 
         # Smooth ranges
-        for i, p in enumerate(ranges[(len(ranges)//4):(len(ranges)*3//4)]):
-            idx = i + len(ranges)//4
-            p = 0.4 * p + 0.2 * (ranges[idx+1] + ranges[idx-1]) + 0.1 * (ranges[idx+2] + ranges[idx-2])
+        for i in range(nb_fliter_pass):
+            for i, p in enumerate(ranges[(len(ranges)//4):(len(ranges)*3//4)]):
+                idx = i + len(ranges)//4
+                p = 0.4 * p + 0.2 * (ranges[idx+1] + ranges[idx-1]) + 0.1 * (ranges[idx+2] + ranges[idx-2])
 
         # Use only front values
         ranges = ranges[len(ranges)//4 : len(ranges)*3//4]
 
+        # Find furthest direction
         dir_idx = ranges.index(max(ranges))
-        steering = self.idx_to_steering(dir_idx, len(ranges))
+        steering_dir = self.idx_to_steering(dir_idx, len(ranges))
+
+        # Find closest obstacle
+        dir_idx = ranges.index(min(ranges))
+        steering_obs = -self.idx_to_steering(dir_idx, len(ranges))
+
+        steering = 0.9 * steering_dir + 0.1 * steering_obs
         
         twist = Twist()
         twist.linear.x = self.max_speed
