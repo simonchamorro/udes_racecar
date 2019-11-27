@@ -15,17 +15,44 @@ class PathFollowing:
         self.scan_sub = rospy.Subscriber('scan', LaserScan, self.scan_callback, queue_size=1)
         self.odom_sub = rospy.Subscriber('odom', Odometry, self.odom_callback, queue_size=1)
 
+    def idx_to_steering(self, idx, max_idx):
+        forward = max_idx // 2
+        steering = 1.5* (idx - forward) * self.max_steering / (max_idx//2)
+        if steering >= self.max_steering:
+            steering = self.max_steering
+
+        if steering <= -self.max_steering:
+            steering = -self.max_steering
+        return steering
+
+
+    # TODO: norm values, add cost to steering, add obstacle/wall behaviour
     def scan_callback(self, msg):
         # Because the lidar is oriented backward on the racecar, 
         # if we want the middle value of the ranges to be forward:
-        #l2 = len(msg.ranges)/2;
-        #ranges = msg.ranges[l2:len(msg.ranges)] + msg.ranges[0:l2]
+        l2 = len(msg.ranges)/2;
+        ranges = msg.ranges[l2:len(msg.ranges)] + msg.ranges[0:l2]
+
+        # #  Normalize ranges
+        # max_val = max(ranges)
+        # ranges = [r/max_val for r in ranges]
+
+        # Smooth ranges
+        for i, p in enumerate(ranges[(len(ranges)//4):(len(ranges)*3//4)]):
+            idx = i + len(ranges)//4
+            p = 0.4 * p + 0.2 * (ranges[idx+1] + ranges[idx-1]) + 0.1 * (ranges[idx+2] + ranges[idx-2])
+
+        # Use only front values
+        ranges = ranges[len(ranges)//4 : len(ranges)*3//4]
+
+        dir_idx = ranges.index(max(ranges))
+        steering = self.idx_to_steering(dir_idx, len(ranges))
         
         twist = Twist()
         twist.linear.x = self.max_speed
-        twist.angular.z = 0
+        twist.angular.z = steering
            
-        self.cmd_vel_pub.publish(twist);
+        self.cmd_vel_pub.publish(twist)
         
     def odom_callback(self, msg):
         rospy.loginfo("Current speed = %f m/s", msg.twist.twist.linear.x)

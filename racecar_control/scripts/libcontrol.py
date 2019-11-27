@@ -28,13 +28,37 @@ def multiply_transforms((trans1, rot1), (trans2, rot2)):
     
     return (trans3, rot3)
 
+
+def add_to_neighbors(map, idx1, idx2, nb):
+    try:
+        if map[idx1+1][idx2] == -1:
+           map[idx1+1][idx2] = nb + 1
+        if map[idx1-1][idx2] == -1:
+           map[idx1-1][idx2] = nb + 1
+        if map[idx1][idx2+1] == -1:
+           map[idx1][idx2+1] = nb + 1
+        if map[idx1][idx2-1] == -1:
+           map[idx1][idx2-1] = nb + 1
+    except:
+        # TODO: edge cases
+        pass
+
+
 def brushfire(occupancyGrid):
     mapOfWorld = np.zeros(occupancyGrid.shape, dtype=int)
     
     mapOfWorld[occupancyGrid==100] = 1 # obstacles
-    mapOfWorld[occupancyGrid==-1] = 1  # unknowns
-    
-    # do brushfire algorithm here
+    mapOfWorld[occupancyGrid==-1] = -1  # unknowns
+    mapOfWorld[occupancyGrid==0] = -1 
+
+    #import pdb; pdb.set_trace()
+    num = 1
+    while -1 in mapOfWorld:
+        for i in range(mapOfWorld.shape[0]):
+            for j in range(mapOfWorld.shape[1]):
+                if mapOfWorld[i][j] == num:
+                    add_to_neighbors(mapOfWorld, i, j, num)
+        num += 1      
     
     # brushfire: -1 = obstacle or unknown, safer cells have higher value)
     return mapOfWorld
