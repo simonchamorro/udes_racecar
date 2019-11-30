@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="prefix" default="racecar" />
-  <arg name="joy" default="js0" />
+  <arg name="joy" default="js1" />
   <arg name="x" default="0" />
   <arg name="y" default="0" />
   <arg name="theta" default="0" />

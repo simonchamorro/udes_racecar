@@ -1,15 +1,15 @@
 <!-- -->
 <launch>
   <arg name="prefix" default="racecar"/>
-  <arg name="localization" default="false"/> 
-  <arg name="database_path" default="~/.ros/rtabmap_$(arg prefix).db"/> 
+  <arg name="localization" default="true"/> 
+  <arg name="database_path" default="~/src/racecar_ws/src/udes_racecar/racecar_navigation/rtabmap_$(arg prefix).db"/> 
   <arg name="odom_correction" default="true"/> 
   
   <arg     if="$(arg localization)" name="rtabmap_args" value="--Mem/IncrementalMemory false"/>
   <arg unless="$(arg localization)" name="rtabmap_args" value="--delete_db_on_start"/>
   
   <group ns="$(arg prefix)">
-    
+    b
     <!-- Mapping: -->
     <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="screen" args="$(arg rtabmap_args) --uerror">
       <param name="database_path" type="string" value="$(arg database_path)"/>
