@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import rospy
 import rospkg
 import cv2
@@ -50,11 +51,14 @@ class BlobDetector:
         self.config_srv = Server(BlobDetectorConfig, self.config_callback)
         self.max_speed = rospy.get_param('~max_speed', 1)
 
-        self.num_debris = 0
+        self.num_debris = 1
         self.objects_positions = []
         self.object_stored = False
         self.rospack = rospkg.RosPack()
         self.rospack.list() 
+        self.path = self.rospack.get_path('racecar_control') + "/report/"
+        if os.path.exists((self.path + "points.txt")):
+            os.remove((self.path + "points.txt"))
         
         params = cv2.SimpleBlobDetector_Params()
         # see https://www.geeksforgeeks.org/find-circles-and-ellipses-in-an-image-using-opencv-python/
@@ -209,7 +213,10 @@ class BlobDetector:
         
         object_pos = [transMap[0], transMap[1]]
         for pos_stored in self.objects_positions:
-            if pos_stored[0] != object_pos[0] and pos_stored[1] != object_pos[1]:
+            if pos_stored[0] <= object_pos[0] + 0.5 and \
+                pos_stored[0] >= object_pos[0] - 0.5 and \
+                pos_stored[1] <= object_pos[1] + 0.5 and \
+                pos_stored[1] >= object_pos[0] - 0.5:
                 self.objects_positions.append([transMap[0], transMap[0]])
                 self.num_debris +=1
                 self.object_stored = False
@@ -218,7 +225,7 @@ class BlobDetector:
             twist = Twist()
             if distance >= 1.5 and angle != 0:
                 twist.linear.x = self.max_speed
-                twist.angular.z = angle
+                twist.angular.z = 2*angle
                 self.cmd_vel_pub.publish(twist)
 
             if distance < 1.5:
@@ -228,11 +235,13 @@ class BlobDetector:
                         twist.angular.z = 0
                         self.cmd_vel_pub.publish(twist)
 
-                        filename = "debris" + str(self.num_debris) + ".jpg"
-                        path = self.rospack.get_path('racecar_control') + "/report" + filename
-                        cv2.imwrite(filename, cv_image)
+                        filename = "photo_object_" + str(self.num_debris) + ".png"
+                        cv2.imwrite((self.path + filename), self.bridge.imgmsg_to_cv2(image, "bgr8"))
 
-
+                        f = open((self.path + "points.txt"), "a")
+                        f.write(str(transMap[0]) + " " + str(transMap[1]) + "\n")
+                        f.close()
+                        self.object_stored = True
 
         # debugging topic
         if self.image_pub.get_num_connections()>0:
@@ -242,6 +251,7 @@ class BlobDetector:
             except CvBridgeError as e:
                 print(e)
 
+    
 def main():
     rospy.init_node('blob_detector')
     blobDetector = BlobDetector()
