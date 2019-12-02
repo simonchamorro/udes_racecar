@@ -31,6 +31,8 @@ def create_report(folder_path, map_2d):
     
     import pdb; pdb.set_trace()
 
+    # TODO
+
     f = open(folder_path + "report.txt","w+")
     
     for p in points:

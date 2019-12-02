@@ -64,14 +64,14 @@ def brushfire(occupancyGrid):
     return mapOfWorld
 
 
-    def brushfire_inv(occupancyGrid):
-        brushfire_map = brushfire(occupancyGrid)
-        maximum = np.amax(brushfire_map)
+def brushfire_inv(occupancyGrid):
+    brushfire_map = brushfire(occupancyGrid)
+    maximum = np.amax(brushfire_map)
 
-        if maximum > 0:
-            for i in range(brushfire_map.shape[0]):
-                for j in range(brushfire_map.shape[1]):
-                    brushfire_map[i][j] = maximum - brushfire_map[i][j]
+    if maximum > 0:
+        for i in range(brushfire_map.shape[0]):
+            for j in range(brushfire_map.shape[1]):
+                brushfire_map[i][j] = maximum - brushfire_map[i][j]
     return brushfire_map
 
 
