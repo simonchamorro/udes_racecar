@@ -63,6 +63,7 @@ def brushfire(occupancyGrid):
     # brushfire: -1 = obstacle or unknown, safer cells have higher value)
     return mapOfWorld
 
+
     def brushfire_inv(occupancyGrid):
         brushfire_map = brushfire(occupancyGrid)
         maximum = np.amax(brushfire_map)
@@ -72,4 +73,5 @@ def brushfire(occupancyGrid):
                 for j in range(brushfire_map.shape[1]):
                     brushfire_map[i][j] = maximum - brushfire_map[i][j]
     return brushfire_map
+
 
