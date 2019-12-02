@@ -17,7 +17,7 @@ class PathFollowing:
 
     def idx_to_steering(self, idx, max_idx):
         forward = max_idx // 2
-        steering = 1.5* (idx - forward) * self.max_steering / (max_idx//2)
+        steering = 1.5 * (idx - forward) * self.max_steering / (max_idx//2)
         if steering >= self.max_steering:
             steering = self.max_steering
 
@@ -25,18 +25,26 @@ class PathFollowing:
             steering = -self.max_steering
         return steering
 
+    def idx_to_steering_inv(self, idx, max_idx):
+        forward = max_idx // 2
+        if idx < forward:
+            steering = -3.5 * idx * self.max_steering / (max_idx//2)
+        else:
+            steering = 1.5 * (max_idx - idx) * self.max_steering / (max_idx//2)
 
-    # TODO: norm values, add cost to steering, add obstacle/wall behaviour
+        if steering >= self.max_steering:
+            steering = self.max_steering
+
+        if steering <= -self.max_steering:
+            steering = -self.max_steering
+        return steering
+
     def scan_callback(self, msg):
         # Because the lidar is oriented backward on the racecar, 
         # if we want the middle value of the ranges to be forward:
         l2 = len(msg.ranges)/2;
         ranges = msg.ranges[l2:len(msg.ranges)] + msg.ranges[0:l2]
         nb_fliter_pass = 1
-
-        #  Normalize ranges
-        # max_val = max(ranges)
-        # ranges = [r/max_val for r in ranges]
 
         # Smooth ranges
         for i in range(nb_fliter_pass):
@@ -53,9 +61,9 @@ class PathFollowing:
 
         # Find closest obstacle
         dir_idx = ranges.index(min(ranges))
-        steering_obs = -self.idx_to_steering(dir_idx, len(ranges))
+        steering_obs = -self.idx_to_steering_inv(dir_idx, len(ranges))
 
-        steering = 0.9 * steering_dir + 0.1 * steering_obs
+        steering = 0.6* steering_dir + 0.4 * steering_obs
         
         twist = Twist()
         twist.linear.x = self.max_speed
