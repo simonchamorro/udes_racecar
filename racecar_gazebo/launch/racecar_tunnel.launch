@@ -2,7 +2,7 @@
 <launch>
   <arg name="gui" default="true" />
   <arg name="web_server" default="false"/>
-  <arg name="joy" default="js0" />
+  <arg name="joy" default="js1" />
   <arg name="prefix" default="racecar" />
   
   <include file="$(find gazebo_ros)/launch/empty_world.launch">

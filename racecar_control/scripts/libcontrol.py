@@ -62,5 +62,7 @@ def brushfire(occupancyGrid):
     
     # brushfire: -1 = obstacle or unknown, safer cells have higher value)
     return mapOfWorld
+
+
     
 

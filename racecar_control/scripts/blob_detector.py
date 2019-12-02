@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
+import rospkg
 import cv2
 import numpy as np
 import message_filters
@@ -9,7 +10,7 @@ from racecar_control.cfg import BlobDetectorConfig
 from dynamic_reconfigure.server import Server
 from std_msgs.msg import String, ColorRGBA
 from sensor_msgs.msg import Image, CameraInfo
-from geometry_msgs.msg import Pose, Quaternion
+from geometry_msgs.msg import Pose, Quaternion, Twist
 from cv_bridge import CvBridge, CvBridgeError
 from tf.transformations import euler_from_quaternion
 
@@ -41,12 +42,19 @@ class BlobDetector:
         self.map_frame_id = rospy.get_param('~map_frame_id', 'map')
         self.frame_id = rospy.get_param('~frame_id', 'base_link')
         self.object_frame_id = rospy.get_param('~object_frame_id', 'object')
-        self.color_hue = rospy.get_param('~color_hue', 10) # 160=purple, 100=blue, 10=Orange
+        self.color_hue = rospy.get_param('~color_hue', 90) # 160=purple, 100=blue, 10=Orange
         self.color_range = rospy.get_param('~color_range', 15) 
         self.color_saturation = rospy.get_param('~color_saturation', 50) 
         self.color_value = rospy.get_param('~color_value', 50) 
         self.border = rospy.get_param('~border', 10) 
         self.config_srv = Server(BlobDetectorConfig, self.config_callback)
+        self.max_speed = rospy.get_param('~max_speed', 1)
+
+        self.num_debris = 0
+        self.objects_positions = []
+        self.object_stored = False
+        self.rospack = rospkg.RosPack()
+        self.rospack.list() 
         
         params = cv2.SimpleBlobDetector_Params()
         # see https://www.geeksforgeeks.org/find-circles-and-ellipses-in-an-image-using-opencv-python/
@@ -79,6 +87,10 @@ class BlobDetector:
         params.filterByInertia = False
         params.minInertiaRatio = 0.1
 
+        # Set color_range value
+        self.color_range = 90
+
+
         self.detector = cv2.SimpleBlobDetector_create(params)
         
         self.br = tf.TransformBroadcaster()
@@ -86,6 +98,7 @@ class BlobDetector:
         
         self.image_pub = rospy.Publisher('image_detections', Image, queue_size=1)
         self.object_pub = rospy.Publisher('object_detected', String, queue_size=1)
+        self.cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         
         self.image_sub = message_filters.Subscriber('image', Image)
         self.depth_sub = message_filters.Subscriber('depth', Image)
@@ -168,6 +181,7 @@ class BlobDetector:
                     image.header.frame_id)  
             msg = String()
             msg.data = self.object_frame_id
+            print(self.object_frame_id)
             self.object_pub.publish(msg) # signal that an object has been detected
             
             # Compute object pose in map frame
@@ -192,6 +206,33 @@ class BlobDetector:
             angle = np.arcsin(transBase[1]/transBase[0])
             
             rospy.loginfo("Object detected at [%f,%f] in %s frame! Distance and direction from robot: %fm %fdeg.", transMap[0], transMap[1], self.map_frame_id, distance, angle*180.0/np.pi)
+        
+        object_pos = [transMap[0], transMap[1]]
+        for pos_stored in self.objects_positions:
+            if pos_stored[0] != object_pos[0] and pos_stored[1] != object_pos[1]:
+                self.objects_positions.append([transMap[0], transMap[0]])
+                self.num_debris +=1
+                self.object_stored = False
+
+        if self.object_frame_id:
+            twist = Twist()
+            if distance >= 1.5 and angle != 0:
+                twist.linear.x = self.max_speed
+                twist.angular.z = angle
+                self.cmd_vel_pub.publish(twist)
+
+            if distance < 1.5:
+                if angle < 1 or angle > 1:
+                    if not self.object_stored:
+                        twist.linear.x = 0
+                        twist.angular.z = 0
+                        self.cmd_vel_pub.publish(twist)
+
+                        filename = "debris" + str(self.num_debris) + ".jpg"
+                        path = self.rospack.get_path('racecar_control') + "/report" + filename
+                        cv2.imwrite(filename, cv_image)
+
+
 
         # debugging topic
         if self.image_pub.get_num_connections()>0:
@@ -211,4 +252,5 @@ if __name__ == '__main__':
         main()
     except rospy.ROSInterruptException:
         pass
+    
 
