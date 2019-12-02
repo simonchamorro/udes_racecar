@@ -44,7 +44,7 @@ class BlobDetector:
         self.frame_id = rospy.get_param('~frame_id', 'base_link')
         self.object_frame_id = rospy.get_param('~object_frame_id', 'object')
         self.color_hue = rospy.get_param('~color_hue', 90) # 160=purple, 100=blue, 10=Orange
-        self.color_range = rospy.get_param('~color_range', 15) 
+        self.color_range = rospy.get_param('~color_range', 90) 
         self.color_saturation = rospy.get_param('~color_saturation', 50) 
         self.color_value = rospy.get_param('~color_value', 50) 
         self.border = rospy.get_param('~border', 10) 
@@ -135,7 +135,7 @@ class BlobDetector:
             print(e)
         
         hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
-        
+        self.color_range = 90
         mask = cv2.inRange(hsv, np.array([self.color_hue-self.color_range,self.color_saturation,self.color_value]), np.array([self.color_hue+self.color_range,255,255]))
         keypoints = self.detector.detect(mask) 
         
@@ -211,37 +211,39 @@ class BlobDetector:
             
             rospy.loginfo("Object detected at [%f,%f] in %s frame! Distance and direction from robot: %fm %fdeg.", transMap[0], transMap[1], self.map_frame_id, distance, angle*180.0/np.pi)
         
-        object_pos = [transMap[0], transMap[1]]
-        for pos_stored in self.objects_positions:
-            if pos_stored[0] <= object_pos[0] + 0.5 and \
-                pos_stored[0] >= object_pos[0] - 0.5 and \
-                pos_stored[1] <= object_pos[1] + 0.5 and \
-                pos_stored[1] >= object_pos[0] - 0.5:
-                self.objects_positions.append([transMap[0], transMap[0]])
-                self.num_debris +=1
-                self.object_stored = False
+            object_pos = [transMap[0], transMap[1]]
+            for pos_stored in self.objects_positions:
+                if pos_stored[0] <= object_pos[0] + 0.5 and \
+                    pos_stored[0] >= object_pos[0] - 0.5 and \
+                    pos_stored[1] <= object_pos[1] + 0.5 and \
+                    pos_stored[1] >= object_pos[0] - 0.5:
+                    self.objects_positions.append([transMap[0], transMap[0]])
+                    self.num_debris +=1
+                    self.object_stored = False
 
-        if self.object_frame_id:
-            twist = Twist()
-            if distance >= 1.5 and angle != 0:
-                twist.linear.x = self.max_speed
-                twist.angular.z = 2*angle
-                self.cmd_vel_pub.publish(twist)
+            if self.object_frame_id:
+                twist = Twist()
+                if distance >= 2 and angle != 0:
+                    twist.linear.x = self.max_speed
+                    twist.angular.z = 2*angle
+                    self.cmd_vel_pub.publish(twist)
+                    print("avance")
 
-            if distance < 1.5:
-                if angle < 1 or angle > 1:
-                    if not self.object_stored:
-                        twist.linear.x = 0
-                        twist.angular.z = 0
-                        self.cmd_vel_pub.publish(twist)
+                if distance < 2:
+                    if angle < 5 or angle > -5:
+                        if not self.object_stored:
+                            print("stop")
+                            twist.linear.x = 0
+                            twist.angular.z = 0
+                            self.cmd_vel_pub.publish(twist)
 
-                        filename = "photo_object_" + str(self.num_debris) + ".png"
-                        cv2.imwrite((self.path + filename), self.bridge.imgmsg_to_cv2(image, "bgr8"))
+                            filename = "photo_object_" + str(self.num_debris) + ".png"
+                            cv2.imwrite((self.path + filename), self.bridge.imgmsg_to_cv2(image, "bgr8"))
 
-                        f = open((self.path + "points.txt"), "a")
-                        f.write(str(transMap[0]) + " " + str(transMap[1]) + "\n")
-                        f.close()
-                        self.object_stored = True
+                            f = open((self.path + "points.txt"), "a")
+                            f.write(str(transMap[0]) + " " + str(transMap[1]) + "\n")
+                            f.close()
+                            self.object_stored = True
 
         # debugging topic
         if self.image_pub.get_num_connections()>0:
