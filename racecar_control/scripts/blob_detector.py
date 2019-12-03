@@ -54,6 +54,7 @@ class BlobDetector:
         self.num_debris = 1
         self.objects_positions = []
         self.object_stored = False
+        self.obstacle_detect_time = 0
         self.rospack = rospkg.RosPack()
         self.rospack.list() 
         self.path = self.rospack.get_path('racecar_control') + "/report/"
@@ -175,7 +176,7 @@ class BlobDetector:
                         closestObject[2] = depth
 
         # We process only the closest object detected
-        if closestObject[2] > 0:
+        if closestObject[2] > 0 and (float(rospy.get_rostime()) - float(self.obstacle_detect_time)) >= 5.0:
             # assuming the object is circular, use center of the object as position
             transObj = (closestObject[0], closestObject[1], closestObject[2])
             rotObj = tf.transformations.quaternion_from_euler(0, np.pi/2, -np.pi/2)
@@ -238,7 +239,7 @@ class BlobDetector:
                             self.cmd_vel_pub.publish(twist)
                             rospy.loginfo("taking picture")
                             rospy.loginfo("processing...")
-                            rospy.sleep(5000)
+                            self.obstacle_detect_time = rospy.get_rostime()
 
                             filename = "photo_object_" + str(self.num_debris) + ".png"
                             cv2.imwrite((self.path + filename), self.bridge.imgmsg_to_cv2(image, "bgr8"))

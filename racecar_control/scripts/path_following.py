@@ -41,12 +41,12 @@ class PathFollowing:
 
         # Find furthest direction
         dir_idx = ranges.index(np.amax(np.asarray(ranges)[np.asarray(ranges) != np.inf]))
-        steering_dir = self.idx_to_steering(dir_idx, len(ranges))
+        steering_dir = idx_to_steering(dir_idx, len(ranges), self.max_steering)
         
 
         # Find closest obstacle
         dir_idx = ranges.index(min(ranges))
-        steering_obs = -self.idx_to_steering_inv(dir_idx, len(ranges))
+        steering_obs = -idx_to_steering_inv(dir_idx, len(ranges), self.max_steering)
 
         steering = 0.6* steering_dir + 0.4 * steering_obs
         
