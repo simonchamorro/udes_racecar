@@ -75,3 +75,28 @@ def brushfire_inv(occupancyGrid):
     return brushfire_map
 
 
+def idx_to_steering(idx, max_idx, max_steering):
+    forward = max_idx // 2
+    steering = 1.5 * (idx - forward) * max_steering / (max_idx//2)
+    if steering >= max_steering:
+        steering = max_steering
+
+    if steering <= -max_steering:
+        steering = -max_steering
+    return steering
+
+def idx_to_steering_inv(idx, max_idx, max_steering):
+    forward = max_idx // 2
+    if idx < forward:
+        steering = -3.5 * idx * max_steering / (max_idx//2)
+    else:
+        steering = 3.5 * (max_idx - idx) * max_steering / (max_idx//2)
+
+    if steering >= max_steering:
+        steering = max_steering
+
+    if steering <= -max_steering:
+        steering = -max_steering
+    return steering
+
+

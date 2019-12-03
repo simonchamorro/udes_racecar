@@ -5,6 +5,7 @@ import math
 import numpy as np
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
+from libcontrol import *
 
 class ObstacleDetector:
     def __init__(self):
@@ -12,6 +13,7 @@ class ObstacleDetector:
         self.cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         self.scan_sub = rospy.Subscriber('scan', LaserScan, self.scan_callback, queue_size=1)
         self.obstacle_front = False
+        self.obs_steering = 0.0
 
     def scan_callback(self, msg):
     
@@ -30,6 +32,7 @@ class ObstacleDetector:
 
             if not obstacleDetected:
                 self.obstacle_front = False
+                self.obs_steering = 0.0
 
             else:
                 # Obstacle back?
@@ -45,6 +48,7 @@ class ObstacleDetector:
                 else:
                     back_up = Twist()
                     back_up.linear.x = -0.5
+                    back_up.angular.z = self.obs_steering
                     self.cmd_vel_pub.publish(back_up)
 
         else:
@@ -53,6 +57,7 @@ class ObstacleDetector:
             for i in range(l2-l2/8, l2+l2/8) :
                 if np.isfinite(ranges[i]) and ranges[i]>0 and ranges[i] < self.distance:
                     obstacleDetected = True
+                    self.obs_steering = idx_to_steering_inv(i - (l2 // 2), l2, 0.37)
                     break
                     
             if obstacleDetected:
