@@ -6,6 +6,8 @@ import numpy as np
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
+from libcontrol import *
+
 
 class PathFollowing:
     def __init__(self):
@@ -17,32 +19,10 @@ class PathFollowing:
         self.position = np.array([0, 0, 0])
         self.goal = np.array([1, 1, 1])
 
-    def idx_to_steering(self, idx, max_idx):
-        forward = max_idx // 2
-        steering = 1.5 * (idx - forward) * self.max_steering / (max_idx//2)
-        if steering >= self.max_steering:
-            steering = self.max_steering
-
-        if steering <= -self.max_steering:
-            steering = -self.max_steering
-        return steering
-
-    def idx_to_steering_inv(self, idx, max_idx):
-        forward = max_idx // 2
-        if idx < forward:
-            steering = -3.5 * idx * self.max_steering / (max_idx//2)
-        else:
-            steering = 3.5 * (max_idx - idx) * self.max_steering / (max_idx//2)
-
-        if steering >= self.max_steering:
-            steering = self.max_steering
-
-        if steering <= -self.max_steering:
-            steering = -self.max_steering
-        return steering
-
     def scan_callback(self, msg):
+
         #if dist == numpy.linalg.norm(self.goal - self.position) < 0.5:
+
         # Because the lidar is oriented backward on the racecar, 
         # if we want the middle value of the ranges to be forward:
         l2 = len(msg.ranges)/2;
@@ -78,6 +58,7 @@ class PathFollowing:
 
     # else:
     #     self.cmd_vel_pub.publish(Twist())
+
         
     def odom_callback(self, msg):
         x = msg.pose.pose.position.x
