@@ -1,7 +1,7 @@
 <!-- -->
 <launch>
   <arg name="prefix" default="racecar"/>
-  <arg name="localization" default="true"/> 
+  <arg name="localization" default="false"/> 
   <arg name="database_path" default="$(find racecar_navigation)/rtabmap_$(arg prefix).db"/> 
   <arg name="odom_correction" default="true"/> 
   
