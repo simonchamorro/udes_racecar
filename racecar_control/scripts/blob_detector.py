@@ -53,8 +53,8 @@ class BlobDetector:
 
         self.num_debris = 1
         self.objects_positions = []
-        self.object_stored = False
-        self.obstacle_detect_time = 0
+        self.object_already_stored = False
+        self.stop = False
         self.rospack = rospkg.RosPack()
         self.rospack.list() 
         self.path = self.rospack.get_path('racecar_control') + "/report/"
@@ -122,8 +122,18 @@ class BlobDetector:
         self.color_value = config.color_value
         self.border = config.border
         return config
+
+    def stop_callback(self, evt):
+        self.stop = False
   
     def image_callback(self, image, depth, info):
+
+        if self.stop == True:
+            stop_cmd = Twist()
+            stop_cmd.linear.x = -0.5
+            stop_cmd.angular.z = 0.0
+            self.cmd_vel_pub.publish(stop_cmd)
+            return
             
         try:
             cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
@@ -176,7 +186,9 @@ class BlobDetector:
                         closestObject[2] = depth
 
         # We process only the closest object detected
-        if closestObject[2] > 0 and (float(rospy.get_rostime()) - float(self.obstacle_detect_time)) >= 5.0:
+
+        if closestObject[2] > 0:
+            
             # assuming the object is circular, use center of the object as position
             transObj = (closestObject[0], closestObject[1], closestObject[2])
             rotObj = tf.transformations.quaternion_from_euler(0, np.pi/2, -np.pi/2)
@@ -186,7 +198,6 @@ class BlobDetector:
                     image.header.frame_id)  
             msg = String()
             msg.data = self.object_frame_id
-            print(self.object_frame_id)
             self.object_pub.publish(msg) # signal that an object has been detected
             
             # Compute object pose in map frame
@@ -214,32 +225,44 @@ class BlobDetector:
         
             object_pos = [transMap[0], transMap[1]]
             for pos_stored in self.objects_positions:
-                if pos_stored[0] <= object_pos[0] + 0.5 and \
+                if  pos_stored[0] <= object_pos[0] + 0.5 and \
                     pos_stored[0] >= object_pos[0] - 0.5 and \
                     pos_stored[1] <= object_pos[1] + 0.5 and \
-                    pos_stored[1] >= object_pos[1] - 0.5:
-                    self.objects_positions.append([transMap[0], transMap[0]])
-                    self.num_debris +=1
-                    self.object_stored = False
+                    pos_stored[1] >= object_pos[1] - 0.5 :
+                    print("here")
+                    self.object_already_stored = True
 
-            if self.object_frame_id and not self.object_stored :
+                else:
+                    self.object_already_stored = False
+ 
+
+            rospy.loginfo("je detecte un ballon")
+            try:
+                print(object_pos)
+                print(self.objects_positions[0])
+                print(self.object_already_stored)
+            except:
+                pass
+
+            if self.object_frame_id and not self.object_already_stored :
                 twist = Twist()
                 if distance >= 2 and angle != 0:
                     twist.linear.x = self.max_speed/2
                     twist.angular.z = 2*angle
                     self.cmd_vel_pub.publish(twist)
-                    print("avance")
 
                 if distance < 2:
-                    if angle < 5/360*2*np.pi or angle > 5/360*2*np.pi:
-                        if not self.object_stored:
+                    if angle < (5/360*2*np.pi) or angle > (-5/360*2*np.pi):
+                        if not self.object_already_stored:
                             
                             twist.linear.x = 0
                             twist.angular.z = 0
                             self.cmd_vel_pub.publish(twist)
                             rospy.loginfo("taking picture")
                             rospy.loginfo("processing...")
-                            self.obstacle_detect_time = rospy.get_rostime()
+                            self.objects_positions.append([transMap[0], transMap[1]])
+                            self.stop = True
+                            self.stop_timer = rospy.Timer(rospy.Duration(5), self.stop_callback, oneshot=True)
 
                             filename = "photo_object_" + str(self.num_debris) + ".png"
                             cv2.imwrite((self.path + filename), self.bridge.imgmsg_to_cv2(image, "bgr8"))
@@ -247,7 +270,7 @@ class BlobDetector:
                             f = open((self.path + "points.txt"), "a")
                             f.write(str(transMap[0]) + " " + str(transMap[1]) + "\n")
                             f.close()
-                            self.object_stored = True
+                            self.num_debris +=1
 
         # debugging topic
         if self.image_pub.get_num_connections()>0:
