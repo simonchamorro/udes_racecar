@@ -209,33 +209,36 @@ class BlobDetector:
             distance = np.linalg.norm(transBase[0:2])
             angle = np.arcsin(transBase[1]/transBase[0])
             
-            rospy.loginfo("Object detected at [%f,%f] in %s frame! Distance and direction from robot: %fm %fdeg.", transMap[0], transMap[1], self.map_frame_id, distance, angle*180.0/np.pi)
+            #rospy.loginfo("Object detected at [%f,%f] in %s frame! Distance and direction from robot: %fm %fdeg.", transMap[0], transMap[1], self.map_frame_id, distance, angle*180.0/np.pi)
         
             object_pos = [transMap[0], transMap[1]]
             for pos_stored in self.objects_positions:
                 if pos_stored[0] <= object_pos[0] + 0.5 and \
                     pos_stored[0] >= object_pos[0] - 0.5 and \
                     pos_stored[1] <= object_pos[1] + 0.5 and \
-                    pos_stored[1] >= object_pos[0] - 0.5:
+                    pos_stored[1] >= object_pos[1] - 0.5:
                     self.objects_positions.append([transMap[0], transMap[0]])
                     self.num_debris +=1
                     self.object_stored = False
 
-            if self.object_frame_id:
+            if self.object_frame_id and not self.object_stored :
                 twist = Twist()
                 if distance >= 2 and angle != 0:
-                    twist.linear.x = self.max_speed
+                    twist.linear.x = self.max_speed/2
                     twist.angular.z = 2*angle
                     self.cmd_vel_pub.publish(twist)
                     print("avance")
 
                 if distance < 2:
-                    if angle < 5 or angle > -5:
+                    if angle < 5/360*2*np.pi or angle > 5/360*2*np.pi:
                         if not self.object_stored:
-                            print("stop")
+                            
                             twist.linear.x = 0
                             twist.angular.z = 0
                             self.cmd_vel_pub.publish(twist)
+                            rospy.loginfo("taking picture")
+                            rospy.loginfo("processing...")
+                            rospy.sleep(5000)
 
                             filename = "photo_object_" + str(self.num_debris) + ".png"
                             cv2.imwrite((self.path + filename), self.bridge.imgmsg_to_cv2(image, "bgr8"))

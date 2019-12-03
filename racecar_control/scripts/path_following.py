@@ -20,8 +20,8 @@ class PathFollowing:
         self.goal = np.array([1, 1, 1])
 
     def scan_callback(self, msg):
-        # TODO
-        # if numpy.linalg.norm(self.goal - self.position) < 0.5:
+
+        #if dist == numpy.linalg.norm(self.goal - self.position) < 0.5:
 
         # Because the lidar is oriented backward on the racecar, 
         # if we want the middle value of the ranges to be forward:
@@ -38,32 +38,34 @@ class PathFollowing:
         # Use only front values
         ranges = ranges[len(ranges)//4 : len(ranges)*3//4]
 
+
         # Find furthest direction
-        dir_idx = ranges.index(max(ranges))
-        steering_dir = idx_to_steering(dir_idx, len(ranges), self.max_steering)
+        dir_idx = ranges.index(np.amax(np.asarray(ranges)[np.asarray(ranges) != np.inf]))
+        steering_dir = self.idx_to_steering(dir_idx, len(ranges))
+        
 
         # Find closest obstacle
         dir_idx = ranges.index(min(ranges))
-        steering_obs = -idx_to_steering_inv(dir_idx, len(ranges), self.max_steering)
+        steering_obs = -self.idx_to_steering_inv(dir_idx, len(ranges))
 
         steering = 0.6* steering_dir + 0.4 * steering_obs
         
         twist = Twist()
         twist.linear.x = self.max_speed
         twist.angular.z = steering
-           
+            
         self.cmd_vel_pub.publish(twist)
 
-        # TODO
-        # else:
-        #     self.cmd_vel_pub.publish(Twist())
+    # else:
+    #     self.cmd_vel_pub.publish(Twist())
+
         
     def odom_callback(self, msg):
         x = msg.pose.pose.position.x
         y = msg.pose.pose.position.y
         z = msg.pose.pose.position.z
         self.position = np.array([x, y, z])
-        rospy.loginfo("Current speed = %f m/s", msg.twist.twist.linear.x)
+        #rospy.loginfo("Current speed = %f m/s", msg.twist.twist.linear.x)
 
 def main():
     rospy.init_node('path_following')
