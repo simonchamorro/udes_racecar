@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 import rospy
 import cv2
+import copy
 import numpy as np
 from nav_msgs.srv import GetMap
 from libcontrol import *
 
+ROBOT_ORIGIN = (0, 0)
 
 def get_points(fname):
     points = []
@@ -14,6 +16,8 @@ def get_points(fname):
             if not line:
                 break
             line = line.split(' ')
+            if not len(line) == 2:
+                break
             x, y = float(line[0]), float(line[1])
 
             points.append((x, y))
@@ -129,30 +133,35 @@ def find_path(grid, goal, origin, map_origin, map_resolution):
         grid[idx[0]][idx[1]] = 0
 
 
+def draw_path(grid_map, fname):
+    maximum = np.amax(grid_map)
+    mask_obs = grid_map == maximum
+    map_draw = grid_map.astype(float) / float(maximum) *225.0
+    map_draw[mask_obs] = 255
+
+    # Flip image to get x->up, y->left (like top view in RVIZ looking towards x-axis)
+    cv2.imwrite(fname, cv2.transpose(cv2.flip(map_draw, -1)))
+    rospy.loginfo("Exported " + fname)
+
+
 def create_report(folder_path, map_2d):
-    # points = get_points(folder_path + 'points.txt')
-    # test
-    points = [(15, 2)]
-    origin = (0, 0)
+    points = get_points(folder_path + 'points.txt')
+    origin = ROBOT_ORIGIN
 
     grid = np.reshape(map_2d.map.data, [map_2d.map.info.height, map_2d.map.info.width])
-    brushfire_map = brushfire_inv(grid)
-    
-    find_path(brushfire_map, points[0], origin, map_2d.map.info.origin, map_2d.map.info.resolution)
-
-    maximum = np.amax(brushfire_map)
-    mask_obs = brushfire_map == maximum
-    map_draw = brushfire_map.astype(float) / float(maximum) *225.0
-    map_draw[mask_obs] = 255
-    # Flip image to get x->up, y->left (like top view in RVIZ looking towards x-axis)
-    cv2.imwrite('test.bmp', cv2.transpose(cv2.flip(map_draw, -1)))
-    rospy.loginfo("Exported test.bmp")
+    brushfire_map = brushfire_inv(grid)    
 
     f = open(folder_path + "report.txt","w+")
     
+    obj_num = 1
     for p in points:
-        pass
-        # f.write("x y :" + str(x[i])+ "," + str(y[i]) + " " + str(image[i]) + " " + str(bitmap[i])+ "\n" )
+        cost_map = copy.copy(brushfire_map)
+        map_fname = folder_path + 'trajectory_object_' + str(obj_num) + '.bmp'
+        find_path(cost_map, p, origin, map_2d.map.info.origin, map_2d.map.info.resolution)
+        draw_path(cost_map, map_fname)
+        f.write(str(p[0]) + " " + str(p[1]) + " photo_object_" + str(obj_num) + \
+            ".png trajectory_object_" + str(obj_num) + ".bmp\n" )
+        obj_num += 1
     f.close()
 
 
