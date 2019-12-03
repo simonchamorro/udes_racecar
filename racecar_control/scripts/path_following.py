@@ -32,7 +32,7 @@ class PathFollowing:
         if idx < forward:
             steering = -3.5 * idx * self.max_steering / (max_idx//2)
         else:
-            steering = 1.5 * (max_idx - idx) * self.max_steering / (max_idx//2)
+            steering = 3.5 * (max_idx - idx) * self.max_steering / (max_idx//2)
 
         if steering >= self.max_steering:
             steering = self.max_steering
