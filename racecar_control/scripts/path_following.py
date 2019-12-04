@@ -16,13 +16,22 @@ class PathFollowing:
         self.cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         self.scan_sub = rospy.Subscriber('scan', LaserScan, self.scan_callback, queue_size=1)
         self.odom_sub = rospy.Subscriber('odom', Odometry, self.odom_callback, queue_size=1)
-        self.goal_tolerance = 1
+        self.goal_tolerance = 3
+        self.orientation = 0
         self.position = np.array([0, 0, 0])
+        self.goal = np.array([15, 2, 0])
         self.start_pos = None
-        self.goal = np.array([1, 1, 1])
         self.u_turn = False
         self.reached_pos = False
         self.done = False
+
+        # U turn variables
+        self.going_forward = False
+        self.going_back = False
+        self.ang_goal = 0
+        self.uturn_speed = 0.7
+        self.uturn_steering = 0.37
+        self.obs_distance = 1
 
     def go_forward(self, msg):
         # Because the lidar is oriented backward on the racecar, 
@@ -58,43 +67,92 @@ class PathFollowing:
             
         self.cmd_vel_pub.publish(twist)
 
+    def check_obs_uturn(self, msg):
+        l2 = len(msg.ranges)/2;
+        ranges = msg.ranges[l2:len(msg.ranges)] + msg.ranges[0:l2]
+
+        obstacle_detected = False
+        if self.going_forward:
+            for i in range(l2-l2/8, l2+l2/8) :
+                if np.isfinite(ranges[i]) and ranges[i]>0 and ranges[i] < self.obs_distance:
+                    obstacle_detected = True
+                    break
+
+        elif self.going_back:
+                for i in range(l2-l2/8, l2+l2/8) :
+                    if np.isfinite(msg.ranges[i]) and msg.ranges[i]>0 and msg.ranges[i] < self.obs_distance:
+                        obstacle_detected = True
+                        break
+
+        return obstacle_detected
+
     def do_u_turn(self, msg):
-        pass
-        # TODO
+        if not self.going_back and not self.going_forward:
+            self.going_forward = True
+            self.ang_goal = self.orientation + np.pi
+            if self.ang_goal > np.pi:
+                self.ang_goal = -np.pi + (self.ang_goal % np.pi)
+            self.cmd_vel_pub.publish(Twist())
+            rospy.loginfo("Started U turn, orientation: " + str(self.orientation))
+
+        elif self.going_forward:
+            cmd = Twist()
+            cmd.linear.x = self.uturn_speed
+            cmd.angular.z = self.uturn_steering
+            self.cmd_vel_pub.publish(cmd)
+
+        elif self.going_back:
+            cmd = Twist()
+            cmd.linear.x = -self.uturn_speed
+            cmd.angular.z = -self.uturn_steering
+            self.cmd_vel_pub.publish(cmd)
+
+        if self.check_obs_uturn(msg):
+            self.going_back = not self.going_back
+            self.going_forward = not self.going_forward
+
+        if np.abs(self.ang_goal - self.orientation) < 0.1:
+            print(self.ang_goal)
+            print(self.orientation)
+            self.u_turn = False
+            rospy.loginfo("Finished U turn, orientation: " + str(self.orientation))
 
     def reached_goal(self, goal):
-        return np.linalg.norm(self.position, goal) < self.goal_tolerance
+        reached_goal = np.linalg.norm(self.position - goal) < self.goal_tolerance
+        if reached_goal:
+            rospy.loginfo("Reached goal:" + str(self.position))
+        return reached_goal
 
     def scan_callback(self, msg):
 
-        go_forward(msg)
+        if self.u_turn and not self.done:
+            self.do_u_turn(msg)
 
-        # Uncomment once u_turn is implemented
+        elif not self.reached_pos and not self.done:
+            self.go_forward(msg)
+            rospy.loginfo("Goal:" + str(self.goal))
+            rospy.loginfo("Position: " + str(self.position))
+            if self.reached_goal(self.goal):
+                self.reached_pos = True
+                self.u_turn = True
 
+        elif self.reached_pos and not self.done:
+            self.go_forward(msg)
+            rospy.loginfo("Goal:" + str(self.start_pos))
+            rospy.loginfo("Position: " + str(self.position))
+            if self.reached_goal(self.start_pos):
+                self.done = True
 
-        # if self.u_turn and not self.done:
-        #     self.do_u_turn(msg)
-
-        # elif not self.reached_pos and not self.done:
-        #     self.go_forward()
-        #     if self.reached_goal(self.goal):
-        #         self.reached_pos = True
-        #         self.u_turn = True
-
-        # elif self.reached_pos and not self.done:
-        #     self.go_forward()
-        #     if self.reached_goal(self.start_pos):
-        #         self.done = True
-
-        # else:
-        #     self.cmd_vel_pub.publish(Twist())
-        #     pass
+        else:
+            self.cmd_vel_pub.publish(Twist())
+            pass
         
     def odom_callback(self, msg):
         x = msg.pose.pose.position.x
         y = msg.pose.pose.position.y
         z = msg.pose.pose.position.z
         self.position = np.array([x, y, z])
+        self.orientation = quaternion_to_yaw(msg.pose.pose.orientation)
         if self.start_pos is None:
             self.start_pos = self.position
        

@@ -14,5 +14,7 @@
     <arg name="prefix" value="$(arg prefix)"/>
     <arg name="web_server" value="$(arg web_server)"/>
     <arg name="joy" value="$(arg joy)"/>
+    <arg name="x" value="0"/>
+    <arg name="theta" value="-1.57295"/>
   </include>
 </launch>
