@@ -3,10 +3,14 @@
 import rospy
 import math 
 import numpy as np
+import threading
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
+from nav_msgs.srv import GetMap
 from libcontrol import *
+from report import *
+import rospkg
 
 
 class PathFollowing:
@@ -24,6 +28,7 @@ class PathFollowing:
         self.u_turn = False
         self.reached_pos = False
         self.done = False
+        self.report_done = False
 
         # U turn variables
         self.going_forward = False
@@ -125,6 +130,11 @@ class PathFollowing:
 
     def scan_callback(self, msg):
 
+        # if not self.report_done:
+        #     report_thread = threading.Thread(target=self.generate_report)
+        #     report_thread.start()
+        #     self.report_done = True
+
         if self.u_turn and not self.done:
             self.do_u_turn(msg)
 
@@ -145,7 +155,10 @@ class PathFollowing:
 
         else:
             self.cmd_vel_pub.publish(Twist())
-            pass
+            if not self.report_done:
+                report_thread = threading.Thread(target=self.generate_report)
+                report_thread.start()
+                self.report_done = True
         
     def odom_callback(self, msg):
         x = msg.pose.pose.position.x
@@ -155,8 +168,22 @@ class PathFollowing:
         self.orientation = quaternion_to_yaw(msg.pose.pose.orientation)
         if self.start_pos is None:
             self.start_pos = self.position
-       
-        # rospy.loginfo("Current speed = %f m/s", msg.twist.twist.linear.x)
+
+    def generate_report(self):
+        rospy.loginfo("Generating report...")
+        rospy.wait_for_service('/racecar/get_map', 0.5)
+        try:
+            get_map = rospy.ServiceProxy('/racecar/get_map', GetMap)
+            response = get_map()
+        except (rospy.ServiceException) as e:
+            print "Service call failed: %s"%e
+            return False
+
+        rospack = rospkg.RosPack()
+        pkg_path = rospack.get_path('racecar_control')
+        create_report(pkg_path + '/report/', response, self.start_pos)
+        rospy.loginfo("Exported report to: " + pkg_path + '/report/')
+        return True
 
 def main():
     rospy.init_node('path_following')

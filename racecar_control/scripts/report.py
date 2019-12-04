@@ -121,13 +121,12 @@ def find_path(grid, goal, origin, map_origin, map_resolution):
     goal_idx = (int(goal_y // map_resolution), int(goal_x // map_resolution))
     origin_idx = (int(origin_y // map_resolution), int(origin_x // map_resolution))
 
-    # Permet de definir une nouvelle fonction a un seul parametre. Ainsi, m_n(node) correspond a m_neighbors_8(node, obs_map)
+    grid[goal_idx[0]][goal_idx[1]] = 0
+    grid[origin_idx[0]][origin_idx[1]] = 0
+    
     m_n = lambda node : m_neighbors_8(node, grid)
     m_c = lambda node_a, node_b : m_cost(node_a, node_b, grid)
     (seq, cost) = astar(origin_idx, goal_idx, m_c, m_n, m_h)
-
-    grid[goal_idx[0]][goal_idx[1]] = 0
-    grid[origin_idx[0]][origin_idx[1]] = 0
 
     for idx in seq:
         grid[idx[0]][idx[1]] = 0
@@ -144,9 +143,8 @@ def draw_path(grid_map, fname):
     rospy.loginfo("Exported " + fname)
 
 
-def create_report(folder_path, map_2d):
+def create_report(folder_path, map_2d, origin):
     points = get_points(folder_path + 'points.txt')
-    origin = ROBOT_ORIGIN
 
     grid = np.reshape(map_2d.map.data, [map_2d.map.info.height, map_2d.map.info.width])
     brushfire_map = brushfire_inv(grid)    
@@ -176,7 +174,7 @@ def main():
         print "Service call failed: %s"%e
         return
     
-    create_report('./report/', response)
+    create_report('./report/', response, ROBOT_ORIGIN)
 
 if __name__== "__main__":
   main()
