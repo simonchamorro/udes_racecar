@@ -64,7 +64,7 @@ class PathFollowing:
         dir_idx = ranges.index(min(ranges))
         steering_obs = -idx_to_steering_inv(dir_idx, len(ranges), self.max_steering)
 
-        steering = 0.6* steering_dir + 0.4 * steering_obs
+        steering = 0.7* steering_dir + 0.3 * steering_obs
         
         twist = Twist()
         twist.linear.x = self.max_speed
@@ -140,16 +140,16 @@ class PathFollowing:
 
         elif not self.reached_pos and not self.done:
             self.go_forward(msg)
-            rospy.loginfo("Goal:" + str(self.goal))
-            rospy.loginfo("Position: " + str(self.position))
+            # rospy.loginfo("Goal:" + str(self.goal))
+            # rospy.loginfo("Position: " + str(self.position))
             if self.reached_goal(self.goal):
                 self.reached_pos = True
                 self.u_turn = True
 
         elif self.reached_pos and not self.done:
             self.go_forward(msg)
-            rospy.loginfo("Goal:" + str(self.start_pos))
-            rospy.loginfo("Position: " + str(self.position))
+            # rospy.loginfo("Goal:" + str(self.start_pos))
+            # rospy.loginfo("Position: " + str(self.position))
             if self.reached_goal(self.start_pos):
                 self.done = True
 

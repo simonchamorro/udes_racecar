@@ -1,2 +1,0 @@
-4.9938826577 1.01086495508 photo_object_1.png trajectory_object_1.bmp
-9.74789802843 0.0905577122601 photo_object_2.png trajectory_object_2.bmp

@@ -233,8 +233,7 @@ class BlobDetector:
 
                 else:
                     self.object_already_stored = False
-                    rospy.loginfo("New balon detected")
-            print("angle :" + str(angle))
+                    # rospy.loginfo("New balon detected")
             if self.object_frame_id and not self.object_already_stored :
                 twist = Twist()
                 if distance >= 2 and angle != 0:
