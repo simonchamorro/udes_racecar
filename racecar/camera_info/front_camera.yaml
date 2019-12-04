@@ -4,7 +4,7 @@ camera_name: front_camera
 camera_matrix:
   rows: 3
   cols: 3
-  data: [124.932646333, 0, 80.28228222, 0, 124.620143148, 59.26839883, 0, 0, 1]
+  data: [70, 0, 80.28228222, 0, 124.620143148, 59.26839883, 0, 0, 1]
 distortion_model: plumb_bob
 distortion_coefficients:
   rows: 1
@@ -17,5 +17,5 @@ rectification_matrix:
 projection_matrix:
   rows: 3
   cols: 4
-  data: [127.767997742, 0, 80.279749173, 0, 0, 127.697944641, 58.992029789, 0, 0, 0, 1, 0]
+  data: [70, 0, 80.279749173, 0, 0, 127.697944641, 58.992029789, 0, 0, 0, 1, 0]
 

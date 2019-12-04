@@ -11,7 +11,7 @@ from libcontrol import *
 
 class PathFollowing:
     def __init__(self):
-        self.max_speed = rospy.get_param('~max_speed', 1)
+        self.max_speed = rospy.get_param('~max_speed', 0.75)
         self.max_steering = rospy.get_param('~max_steering', 0.37)
         self.cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         self.scan_sub = rospy.Subscriber('scan', LaserScan, self.scan_callback, queue_size=1)

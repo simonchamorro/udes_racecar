@@ -28,7 +28,7 @@ class ObstacleDetector:
 
         if self.stop == True:
             stop_cmd = Twist()
-            stop_cmd.linear.x = -0.5
+            stop_cmd.linear.x = -1    
             stop_cmd.angular.z = 0.0
             self.cmd_vel_pub.publish(stop_cmd)
             return
@@ -69,7 +69,7 @@ class ObstacleDetector:
                 if np.isfinite(ranges[i]) and ranges[i]>0 and ranges[i] < self.distance:
                     obstacleDetected = True
                     self.stop = True
-                    self.stop_timer = rospy.Timer(rospy.Duration(0.5), self.stop_callback, oneshot=True)
+                    self.stop_timer = rospy.Timer(rospy.Duration(0.3), self.stop_callback, oneshot=True)
                     self.obs_steering = idx_to_steering_inv(i - (l2 // 2), l2, 0.37)
                     break
                     

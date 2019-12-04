@@ -49,7 +49,7 @@ class BlobDetector:
         self.color_value = rospy.get_param('~color_value', 50) 
         self.border = rospy.get_param('~border', 10) 
         self.config_srv = Server(BlobDetectorConfig, self.config_callback)
-        self.max_speed = rospy.get_param('~max_speed', 1)
+        self.max_speed = rospy.get_param('~max_speed', 0.5)
 
         self.num_debris = 1
         self.objects_positions = []
@@ -130,7 +130,7 @@ class BlobDetector:
 
         if self.stop == True:
             stop_cmd = Twist()
-            stop_cmd.linear.x = -0.5
+            stop_cmd.linear.x = 0.0
             stop_cmd.angular.z = 0.0
             self.cmd_vel_pub.publish(stop_cmd)
             return
@@ -225,42 +225,34 @@ class BlobDetector:
         
             object_pos = [transMap[0], transMap[1]]
             for pos_stored in self.objects_positions:
-                if  pos_stored[0] <= object_pos[0] + 0.5 and \
-                    pos_stored[0] >= object_pos[0] - 0.5 and \
-                    pos_stored[1] <= object_pos[1] + 0.5 and \
-                    pos_stored[1] >= object_pos[1] - 0.5 :
-                    print("here")
+                if  pos_stored[0] <= object_pos[0] + 1.5 and \
+                    pos_stored[0] >= object_pos[0] - 1.5 and \
+                    pos_stored[1] <= object_pos[1] + 1.5 and \
+                    pos_stored[1] >= object_pos[1] - 1.5 :
                     self.object_already_stored = True
 
                 else:
                     self.object_already_stored = False
- 
-
-            rospy.loginfo("je detecte un ballon")
-            try:
-                print(object_pos)
-                print(self.objects_positions[0])
-                print(self.object_already_stored)
-            except:
-                pass
-
+                    rospy.loginfo("New balon detected")
+            print("angle :" + str(angle))
             if self.object_frame_id and not self.object_already_stored :
                 twist = Twist()
                 if distance >= 2 and angle != 0:
-                    twist.linear.x = self.max_speed/2
+                    twist.linear.x = self.max_speed
                     twist.angular.z = 2*angle
                     self.cmd_vel_pub.publish(twist)
 
                 if distance < 2:
-                    if angle < (5/360*2*np.pi) or angle > (-5/360*2*np.pi):
+                    if angle < (5*np.pi/180) and angle > (-5*np.pi/180):
                         if not self.object_already_stored:
                             
                             twist.linear.x = 0
                             twist.angular.z = 0
                             self.cmd_vel_pub.publish(twist)
-                            rospy.loginfo("taking picture")
-                            rospy.loginfo("processing...")
+                            rospy.loginfo("Taking picture")
+                            rospy.loginfo(angle)
                             self.objects_positions.append([transMap[0], transMap[1]])
+                            rospy.loginfo("Wait")
                             self.stop = True
                             self.stop_timer = rospy.Timer(rospy.Duration(5), self.stop_callback, oneshot=True)
 
